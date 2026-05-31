@@ -66,6 +66,17 @@ const tools = [
     }
   },
   {
+    name: 'getTransactionStatus',
+    description: 'Checks the status of a specific blockchain transaction.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        transactionId: { type: 'STRING', description: 'The transaction ID to check.' }
+      },
+      required: ['transactionId']
+    }
+  },
+  {
     name: 'discoverAPIs',
     description: 'Discovers available premium API services in the marketplace.',
     parameters: { type: 'OBJECT', properties: {} }
@@ -104,9 +115,13 @@ WORKFLOW:
 1. When asked for data, use 'discoverAPIs' to find the relevant API.
 2. Use 'getAPIPrice' to check its current price.
 3. Compare the price against your auto-buy budget (${config.MAX_AUTO_BUY_BUDGET} USDC).
-   - If the price is LESS THAN or EQUAL to the budget: Automatically proceed to purchase. Use 'transferUSDC' to pay the API's address, then use 'purchaseAPI' with the resulting transaction ID to get the data, and present the data to the user.
-   - If the price is GREATER THAN the budget: STOP. Do not buy it. Reply to the user explaining the price and asking for explicit approval to proceed.
-4. If the user replies with approval (e.g. "Yes, proceed" or "Buy it"), execute the purchase flow.
+   - If the price is LESS THAN or EQUAL to the budget: Automatically proceed to purchase.
+   - If the price is GREATER THAN the budget: STOP. Reply to the user explaining the price and asking for explicit approval to proceed.
+4. If approved or within budget, proceed to payment:
+   - Check your balance using 'getWalletBalance'. Find the USDC token in the response and extract its 'token.id'.
+   - Use 'transferUSDC' to pay the API's address. ALWAYS pass the USDC 'tokenId' you found in the balance check.
+   - Use 'getTransactionStatus' to poll the transaction state. Wait until the state is 'COMPLETE'.
+5. Once 'COMPLETE', use 'purchaseAPI' with the resulting transaction ID to get the data, and present the data to the user.
 
 Always explain what you are doing before calling a tool.
 `;
@@ -147,6 +162,8 @@ async function chatWithAgent(message) {
             call.args.amount, 
             call.args.tokenId
           );
+        } else if (call.name === 'getTransactionStatus') {
+          functionResult = await circleTools.getTransactionStatus(call.args.transactionId);
         } else if (call.name === 'discoverAPIs') {
           functionResult = mockApis.discoverAPIs();
         } else if (call.name === 'getAPIPrice') {

@@ -74,9 +74,15 @@ async function transferUSDC(walletId, destinationAddress, amount, tokenId = null
   const payload = {
     walletId,
     destinationAddress,
-    amounts: [amount.toString()],
-    feeLevel: "MEDIUM"
+    amounts: [amount.toString()]
   };
+
+  if (config.CIRCLE_FEE_POLICY_ID) {
+    console.log(`[Gas Station] Sponsoring transaction with Fee Policy ID: ${config.CIRCLE_FEE_POLICY_ID}`);
+    payload.feePolicyId = config.CIRCLE_FEE_POLICY_ID;
+  } else {
+    payload.feeLevel = "MEDIUM";
+  }
 
   if (tokenId) {
     payload.tokenId = tokenId;
@@ -95,9 +101,30 @@ async function transferUSDC(walletId, destinationAddress, amount, tokenId = null
   }
 }
 
+/**
+ * Checks the status of a specific transaction
+ * @param {string} transactionId 
+ */
+async function getTransactionStatus(transactionId) {
+  const c = getClient();
+  try {
+    const response = await c.getTransaction({ id: transactionId });
+    const state = response.data.transaction.state;
+    console.log(`[Transaction Status] ID: ${transactionId} - State: ${state}`);
+    return {
+      transactionId: response.data.transaction.id,
+      state: state
+    };
+  } catch (error) {
+    console.error("Error fetching transaction status:", error.response?.data || error.message);
+    throw error;
+  }
+}
+
 module.exports = {
   getClient,
   createWallet,
   getWalletBalance,
-  transferUSDC
+  transferUSDC,
+  getTransactionStatus
 };
